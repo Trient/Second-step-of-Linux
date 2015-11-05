@@ -1,0 +1,233 @@
+
+LAMP安装过程
+
+一、安装FTP服务
+	(1) 挂载光驱
+		① 将Linux镜像文件添加到虚拟光驱内
+		② 挂载光驱/dev/cdrom到/cdrom
+			执行:
+				mount /dev/cdrom /cdrom
+	
+	(2) 读取挂载光驱内容
+		执行:
+			cd /cdrom
+			ls
+			cd Packages
+	
+	(3) 安装FTP服务(FTP的rpm包名称为:vsftpd-2.2.2-6.e16.i686.rpm)
+		执行:
+			rpm -ivh vsftpd-2.2.2-6.e16.i686.rpm
+		
+	(4) 启动FTP服务
+		① 查看FTP服务状态
+			service vsftpd status
+		② 启动|停止|重启 FTP服务
+			service vsftpd start|stop|restart
+	
+	(5) 关闭防火墙(防火墙会拒绝FTP远程连接服务)
+		① 关闭防火墙,本次有效,重启则防火墙自动开启
+			service iptables stop
+		② 关闭防火墙,永久有效,直至手动开启 (service iptables start|chkconfig iptables on)
+			chkconfig iptables off
+	
+	(6) 使用FTP客户端软件远程连接Linux
+		注意:
+			① FTP客户端不能使用root用户远程连接Linux
+			② 连接时,如果出现500错误,关闭selinux服务即可
+				vim /etc/selinux/config 中修改 SELINUX=enforcing 为 SELINUX=disabled
+				保存退出后,执行 setenforce 0 使修改立刻生效
+				再次使用FTP客户端软件远程连接Linux即可
+	
+	(7) 使用FTP客户端软件上传Apache、MySQL、PHP的Linux安装包
+
+二、安装Apache
+	(1) 解压安装包
+		软件加压方式:
+			安装包后缀为 tar.gz 使用 tar -zxvf 安装包名称 命令解压
+			安装包后缀为 tar.bz2 使用 tar -jxvf 安装包名称 命令解压
+			
+			解压命令选项:
+				-x : 解压 .tar 文件
+				-v : 显示详细信息
+				-f : 指定解压文件
+				-z : 解压缩
+		执行:
+			tar -zxvf httpd-2.2.9.tar.gz
+
+	(2) 进入解压后的文件夹
+		执行:
+			cd httpd-2.2.9 (解压后的文件名称)
+	
+	(3) 配置安装选项
+		执行:
+			./configure --prefix=/usr/local/apache \ (#安装路径,最后一个反斜杠表示本行未完,)
+							 	 (#回车后转入下行继续输入)
+			--enable-modules=all \
+			--enable-rewrite \
+			--enable-mods-shared=all \
+			--enable-so
+
+	(4) 编译安装文件
+		执行:
+			make
+
+	(5) 开始安装
+		执行:
+			make install
+		注意:
+			① (5) 与 (6) 可以合并为一步,命令为 make && make install
+
+	(6) 启动Apache
+		执行:
+			/usr/local/apache/bin/apachectl start|stop|restart (#apachectL,最后一个字母为小写L)
+		查看是否启动成功:
+			netstat -tunpl|grep 80
+
+	(7) 浏览器访问Linux的IP地址测试Apache是否成功安装并启动
+
+三、安装MySql
+	(1) 创建一个mysql组,添加一个mysql用户,并将该用户加入组mysql
+		执行:
+			groupadd mysql
+			useradd -g mysql mysql
+	
+	(2) 解压安装包
+		执行:
+			tar -zxvf mysql-5.1.58.tar.gz
+	
+	(3) 进入解压后的文件夹
+		执行:
+			cd mysql-5.1.58
+	
+	(4) 配置安装选项
+		执行:
+			./configure --prefix=/usr/local/mysql \
+			--with-charset=utf8 \
+			--with-extra-charsets=gbk,gb2312,binary
+	
+	(5) 编译安装文件并开始安装
+		执行:
+			make && make install
+	
+	(6) 复制mysql的配置文件
+		执行:
+			cp support-files/my-medium.cnf /etc/my.cnf
+
+	(7) 初始化数据库
+		① 进入mysql安装目录
+			cd /usr/local/mysql
+		② 执行bin下的 mysql_install_db 来初始化数据库
+			./bin/mysql_install_db --user=mysql \
+			--datadir=/usr/local/mysql/data
+	
+	(8) 修改mysql的权限设置
+		① 进入mysql安装目录
+			cd /usr/local/mysql
+		② 执行:
+			chown -R root .
+			chown -R mysql data
+			chgrp -R mysql .
+
+	(9) 启动mysql服务
+		① 进入mysql安装目录
+			cd /usr/local/mysql
+		② 执行:
+			./bin/mysqld_safe --user=mysql & (# & 表示该进程在后台执行)
+		③ 查看mysql服务是否启动
+			netstat -tunpl|grep 3306
+		注意:
+			可以使用 pkill mysqld (#mysql服务的名称) 来关闭mysql服务
+	
+	(10) 登陆MySql服务器 (默认没有密码)
+		执行:
+			mysql -uroot
+	
+	(11) 设置mysql的root用户的密码
+		执行:
+			use mysql
+			update user set password=PASSWORD('root') where user='root'
+			flush privileges (#让当前修改立即生效)
+		注意:
+			检测是否设置成功,退出后使用密码登陆
+
+三、安装php
+	(1) 解压安装包
+		执行:
+			tar -zxvf php-5.3.16.tar.gz
+	
+	(2) 进入解压后的文件夹
+		执行:
+			cd php=5.3.16
+
+	(3) 配置安装选项
+		执行:
+			./configure --prefix=/usr/local/php \
+			--with-apxs2=/usr/local/apache/bin/apxs \
+			--with-mysql=/usr/local/mysql
+
+	(4) 编译安装文件并开始安装
+		执行:
+			make && make install
+
+	(5) 复制php的配置文件
+		执行:
+			cp php-5.2.5/php.ini-dist /usr/local/php/lib/php.ini
+
+四、配置Apache支持PHP
+	(1) 打开Apache配置文件,添加AddType
+		执行:
+			vim /usr/local/apache/conf/httpd.conf
+		写入(105行):
+			AddType application/x-httpd-php .php
+	
+	(2) 重启Apache
+		执行:
+			pkill httpd (# 杀死Apache进程httpd)
+			/usr/local/apache/bin/apachectl start (# 启动Apache)
+	
+	(3) 新建一个PHP文件测试数据库连接是否正常
+		(浏览器测试)
+
+五、虚拟主机的配置
+	(1) 在Apache的配置文件中开启虚拟主机
+		执行:
+			vim /usr/local/apache/conf/httpd.conf
+		写入(# 命令行模式下输入 /host 搜索 Virtual hosts ):
+			Include conf/extra/httpd-vhosts.conf
+	
+	(2) 打开/usr/local/apache/conf/extra/httpd-vhosts.conf文件
+		执行:
+			vim /usr/local/apache/conf/extra/httpd-vhosts.conf
+		写入(# 添加虚拟主机):
+			<VirtualHost *:80>
+				DocumentRoot "/var/www/ecshop"
+				ServerName lamp.ecshop.com
+			</VirtualHost>
+
+	(3) 在/var/www/ecshop下新建文件,进行测试
+
+	(4) 重启Apache,修改本地hosts文件,进行测试
+		注意:如果出现 403 或 Forbidden 
+			① 访问权限问题,进入Apache的配置文件
+				修改访问权限:
+					<Directory />
+						Options FollowSymLinks
+						AllowOverride None
+						Allow from all
+					</Directory>
+				修改默认首页:
+					<IfModule dir_module>
+						DirectoryIndex index.html index.php
+					</IfModule>
+				
+			② PHP文件访问权限问题
+				修改PHP文件访问权限:
+					chmod o+r,o+x php文件名
+
+六、把Apache和mysql配置为开机启动
+	(1) 进入/etc/rc.local文件
+		执行:
+			vim /etc/rc.local
+		写入:
+			/usr/local/apache/bin/apachectl start
+			/usr/local/mysql/bin/mysqld_safe --user=mysql &
