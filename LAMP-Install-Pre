@@ -1,0 +1,124 @@
+LAMP环境安装前准备
+
+一、配置网络:
+	(1) 配置IP地址(配置文件)
+		第一块网卡的配置文件 : /etc/sysconfig/network-scripts/ifcfg-eth0
+		第二块网卡的配置文件 : /etc/sysconfig/network-scripts/ifcfg-eth1
+		...以此类推
+		
+		配置:
+			① vim /etc/sysconfig/network-scripts/ifcfg-eth0
+			② 编写以下内容
+				DEVICE : "eth0" (网卡的设备名称)
+				HWADDR : 系统自动读取(网卡的物理地址,即MAC地址)
+				NM_CONTROLLED : "yes"
+				ONBOOT : "yes" (设置网卡随机启动)
+				IPADDR : "***.***.***.***" (ip地址)
+				NETMASK : "255.255.255.0" (网卡的子网掩码)
+				BOOTPROTO : "static" (网卡的设置方式,static为静态方式，用于我们自己设置ip地址)
+						     (还有dhcp动态获取,扩展:如何dhcp动态获取?)
+				TYPE : "Ethernet" (网络类型,以太网)
+		注意:
+			① 配置Linux的ip地址不可与Windows主机的ip地址重复
+			② 需要将虚拟机的Linux网络连接模式改成桥接模式
+			
+	(2) 重启网络服务,让配置文件立刻生效
+		执行:
+			service network start|stop|restart <=> (启动|停止|重启)
+		
+		注意:
+			如果启动网络服务过程中出现错误,提示 NetworkManager ，
+			则表示系统中还有另外一个服务在管理网络,我们要禁用这项服务，
+			执行 service NetworkManager stop 来关闭这项服务,然后重启网络服务即可。
+	
+	(3) 查看网络服务是否启动成功
+		执行:
+			ifconfig
+		结果:
+			inet addr : 你在配置文件中设置的ip地址
+			Mask : 你在配置文件中设置的子网掩码
+		表示网络服务启动成功
+	
+	(4) 查看Linux是否与外界通过网络连通
+		执行:
+			ping ***.***.***.*** (网络中的其他设备的ip地址)
+		结果:
+			如果出现不成功,先检查 (1) 中 注意 下的 ②
+		注意:
+			也可以通过网络中其他设备来执行ping 你在Linux配置文件中设置的ip地址,一样可以检测
+
+二、使用远程连接软件连接Linux服务器
+	(1) 检测ssh服务是否开启
+		执行:
+			service sshd status
+		注意:
+			① 该服务的端口号为 22
+			② Linux下该服务默认安装好了
+	
+	(2) 使用putty软件远程连接Linux服务器之修改putty软件设置
+		修改:
+			① 设置字符集：
+				在设置选项卡中选择 Window(窗口) 下的 Translation(传输),
+				修改 Remote character set(修改字符集) 为UTF-8.
+			② 设置连接窗口的字体以及字体大小：
+				在设置选项卡中选择 Window(窗口) 下的 Appearance(外观),
+				修改 Font settings(字体设置) 为你喜欢的字体及大小即可.
+			③ 设置保持连接:
+				在设置选项卡中选择 Connection(连接) 下的 Appearance(外观),
+				修改 Sending of null packets to keep session active 为30或其他数字,不为0即可,推荐30.
+	
+	(3) 使用putty软件远程连接Linux服务器
+		执行:
+			① 设置要远程连接的Linux服务器的ip地址
+				在设置选项卡中选择 Session(会话)中,
+				修改 Host Name(or IP address) 为 Linux服务器的ip地址,
+				修改 Port(端口号) 为 22 (SSH服务的端口号),
+				修改 Connection type(连接类型) 为 SSH (默认).
+			② 单击 Open(开始/打开) 即可
+			③ 输入Linux登陆用户名以及密码即可登录成功!
+
+三、挂载光驱
+	本质是读取光盘内的数据
+
+	(1) 先将镜像文件加载到虚拟机的虚拟光驱内(真实环境中,将光盘放入计算机光驱内即可)
+
+		注意:
+			① 修改虚拟机内系统的启动顺序,否则Linux下一次开机会从镜像文件启动,执行安装操作
+			② VMware虚拟机下还需手动连接虚拟光驱，VM可忽略 ①
+
+	(2) 挂载光驱
+		注意:
+			① Linux下,硬件设备均以文件形式存在,所以光驱的设备文件在 /dev/cdrom 或 /dev/sr0
+			② 挂载的原理,通过一个目录来与设备文件建立映射关系,然后读取该目录就相当于读取光盘内的数据
+		执行:
+			① mkdir /cdrom ,在根目录下创建目录cdrom
+			② mount /dev/cdrom /cdrom 挂载光驱的设备文件到 根目录下的cdrom目录中
+			   挂载语法解释: mount 硬件设备文件 挂载目录
+			③ unmonut /dev/cdrom 或 /cdrom 取消挂载
+			   取消挂载语法解释: unmount 硬件设备文件|挂载目录
+
+四、软件安装方式
+	(1) .rpm : 二进制软件包
+		优点 : 安装简单,速度快
+		缺点 : 自定义性差,依赖性强
+		安装语法 : 
+			rpm -ivh 软件包全名
+			选项:
+				-i : 安装
+				-v : 显示详细信息
+				-h : 显示安装进度
+		卸载语法 : 
+			rpm -e 软件名 --nodeps (不检测依赖性)
+		查询软件包 : 
+			rpm -q 软件名
+			选项:
+				-a : 查询所有已经安装的软件包
+
+
+	(2) .tar.gz : 源代码编译安装
+		优点 : 开源,可自由定制
+		缺点 : 编译时间长,一旦报错则解决困难
+
+	(3) yum : 智能安装方式
+		优点 : 使用了.rpm安装方式,但解决了依赖性问题
+		缺点 : 要求服务器有网络服务,不够灵活,不可以自由定制
